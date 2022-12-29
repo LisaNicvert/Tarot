@@ -9,6 +9,7 @@
 
 library(shiny)
 library(shinydashboard)
+library(DT)
 
 ui <- dashboardPage(
   dashboardHeader(title = "TarotCounter"),
@@ -49,11 +50,12 @@ ui <- dashboardPage(
               ),
       tabItem(tabName = "recap",
               fluidRow(
-                box(h2("Qui prend etc"),
+                box(h2("Qui prend etc"), width = 4,
                     selectInput("prend", "Qui prend ?",
                                 choices = NULL)
                     ),
-                box(h2("Tableau"))
+                box(h2("Scores"), width = 8,
+                    dataTableOutput("scores"))
                 )
               ),
       tabItem(tabName = "stats",
@@ -64,6 +66,7 @@ ui <- dashboardPage(
 
 server <- function(input, output, session) { 
   
+  # Keep updated joueurs list
   joueurs <- reactive({
     # Initialize choices
     joueurs <- c(input$J1, input$J2, input$J3)
@@ -77,6 +80,15 @@ server <- function(input, output, session) {
     joueurs
   })
   
+  # Initialize scores dataframe
+  output$scores <- renderDataTable({
+    df <- as.data.frame(matrix(nrow = 0, ncol = length(joueurs())))
+    colnames(df) <- joueurs()
+    df
+  })
+  
+  
+  # Update preneur
   observe({
     updateSelectInput(session = session, 
                       inputId = "prend", choices = joueurs())
