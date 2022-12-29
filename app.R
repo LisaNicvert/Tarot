@@ -82,7 +82,8 @@ ui <- dashboardPage(
                     )
                     ),
                 box(h2("Scores"), width = 8,
-                    dataTableOutput("scores_disp"))
+                    dataTableOutput("scores_disp"),
+                    downloadButton('download',"Télécharger les scores"))
                 )
               ),
       tabItem(tabName = "stats",
@@ -246,6 +247,14 @@ server <- function(input, output, session) {
     }
     
   })
+  
+  # Download button
+  output$download <- downloadHandler(
+    filename = function(){"tarot.csv"}, 
+    content = function(fname){
+      write.csv(scores$data, fname)
+    }
+  )
   
   }
 
