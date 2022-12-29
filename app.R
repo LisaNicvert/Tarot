@@ -73,7 +73,7 @@ ui <- dashboardPage(
                                  value = NULL, min = 0, max = 91, step = 0.5),
                     numericInput("scorechall", "Score des challengers", 
                                  value = NULL, min = 0, max = 91, step = 0.5),
-                    h3("Partie"),
+                    h3("Scores finaux"),
                     dataTableOutput("scores_round"),
                     
                     ),
@@ -156,7 +156,10 @@ server <- function(input, output, session) {
   
   # Display current round scores
   output$scores_round <- renderDataTable({
-    scores_round()[1:length(players())]
+    df <- scores_round()[1:length(players())]
+    DT::datatable(df, 
+                  rownames = FALSE,
+                  options = list(dom = 't', ordering = FALSE))
   })
   
   # Display scores dataframe
