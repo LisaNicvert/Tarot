@@ -41,7 +41,11 @@ ui <- dashboardPage(
               column(width = 2,
                 conditionalPanel(condition = "input.njoueurs >= 5",
                                  textInput("J5", "Joueur-euse 5"))
-                )
+                ),
+              column(width = 12,
+                     fileInput("inputtab", "Importer d'anciens scores", 
+                               multiple = FALSE, accept = "text/csv")
+                     )
               ),
       tabItem(tabName = "recap",
               fluidRow(
