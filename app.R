@@ -12,6 +12,10 @@ library(shinydashboard)
 library(DT)
 library(magrittr)
 
+# Define global threshold variable
+thr <- c(56, 51, 41, 36)
+names(thr) <- as.character(0:3)
+
 ui <- dashboardPage(
   dashboardHeader(title = "TarotCounter"),
   dashboardSidebar(
@@ -57,7 +61,8 @@ ui <- dashboardPage(
                     selectInput("contrat", "Contrat",
                                 choices = list("petite", "pousse", "garde")),
                     numericInput("nbouts", "Bouts", 
-                                 value = 1, min = 1, max = 3, step = 1),
+                                 value = 0, min = 0, max = 3, step = 1),
+                    textOutput("contract_text"),
                     numericInput("scorepren", "Score du preneur", 
                                  value = 0, min = 0, max = 91, step = 0.5),
                     numericInput("scorechall", "Score des challengers", 
@@ -89,7 +94,6 @@ server <- function(input, output, session) {
     joueurs
   })
   
-  
   # Initialize scores dataframe
   scores <- reactive({
     df <- data.frame("j1" = numeric(0),
@@ -114,6 +118,11 @@ server <- function(input, output, session) {
     # Display only relevant scores
     output_df <- scores()[c(1:njoueurs, 6:ncol(scores()))]
     output_df
+  })
+  
+  # Display contract
+  output$contract_text <- renderText({
+    paste("Le preneur doit faire au moins", thr[as.character(input$nbouts)], "points.")
   })
   
   # Update preneur
