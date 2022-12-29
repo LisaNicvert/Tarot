@@ -10,6 +10,7 @@
 library(shiny)
 library(shinydashboard)
 library(DT)
+library(magrittr)
 
 ui <- dashboardPage(
   dashboardHeader(title = "TarotCounter"),
@@ -50,12 +51,20 @@ ui <- dashboardPage(
               ),
       tabItem(tabName = "recap",
               fluidRow(
-                box(h2("Qui prend etc"), width = 4,
+                box(h2("Partie en cours"), width = 4,
                     selectInput("prend", "Qui prend ?",
-                                choices = NULL)
+                                choices = NULL),
+                    selectInput("contrat", "Contrat",
+                                choices = list("petite", "pousse", "garde")),
+                    numericInput("nbouts", "Bouts", 
+                                 value = 1, min = 1, max = 3, step = 1),
+                    numericInput("scorepren", "Score du preneur", 
+                                 value = 0, min = 0, max = 91, step = 0.5),
+                    numericInput("scorechall", "Score des challengers", 
+                                 value = 0, min = 0, max = 91, step = 0.5)
                     ),
                 box(h2("Scores"), width = 8,
-                    dataTableOutput("scores"))
+                    dataTableOutput("scores_disp"))
                 )
               ),
       tabItem(tabName = "stats",
@@ -80,19 +89,49 @@ server <- function(input, output, session) {
     joueurs
   })
   
+  
   # Initialize scores dataframe
-  output$scores <- renderDataTable({
-    df <- as.data.frame(matrix(nrow = 0, ncol = length(joueurs())))
-    colnames(df) <- joueurs()
+  scores <- reactive({
+    df <- data.frame("j1" = numeric(0),
+                     "j2" = numeric(0),
+                     "j3" = numeric(0),
+                     "j4" = numeric(0),
+                     "j5" = numeric(0),
+                     "Preneur" = character(0),
+                     "Contrat" = character(0),
+                     "Score" = numeric(0),
+                     "Bouts" = numeric(0)
+                     )
+    njoueurs <- length(joueurs())
+    colnames(df)[1:njoueurs] <- joueurs()
     df
   })
   
+  # Display scores dataframe
+  output$scores_disp <- renderDataTable({
+    njoueurs <- length(joueurs())
+    
+    # Display only relevant scores
+    output_df <- scores()[c(1:njoueurs, 6:ncol(scores()))]
+    output_df
+  })
   
   # Update preneur
   observe({
     updateSelectInput(session = session, 
                       inputId = "prend", choices = joueurs())
   })
+  
+  # Update challenger score
+  observe({
+    updateNumericInput(session = session,
+                       "scorepren", value = 91 - input$scorechall)
+  }) %>% bindEvent(input$scorechall, ignoreInit = TRUE)
+  # Update preneur score
+  observe({
+    updateNumericInput(session = session,
+                       "scorechall", value = 91 - input$scorepren)
+  }) %>% bindEvent(input$scorepren, ignoreInit = TRUE)
   
   }
 
