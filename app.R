@@ -11,6 +11,7 @@ library(shiny)
 library(shinydashboard)
 library(DT)
 library(magrittr)
+library(dplyr)
 
 source("functions.R")
 
@@ -75,7 +76,10 @@ ui <- dashboardPage(
                                  value = NULL, min = 0, max = 91, step = 0.5),
                     h3("Scores finaux"),
                     dataTableOutput("scores_round"),
-                    
+                    column(12, align="center",
+                           br(),
+                           actionButton("addround", "Valider")
+                    )
                     ),
                 box(h2("Scores"), width = 8,
                     dataTableOutput("scores_disp"))
@@ -104,20 +108,23 @@ server <- function(input, output, session) {
   })
   
   # Initialize scores dataframe
-  scores <- reactive({
-    df <- data.frame("j1" = numeric(0),
-                     "j2" = numeric(0),
-                     "j3" = numeric(0),
-                     "j4" = numeric(0),
-                     "j5" = numeric(0),
-                     "Preneur" = character(0),
-                     "Contrat" = character(0),
-                     "Score" = numeric(0),
-                     "Bouts" = numeric(0)
-                     )
+  df <- data.frame("j1" = numeric(0),
+                   "j2" = numeric(0),
+                   "j3" = numeric(0),
+                   "j4" = numeric(0),
+                   "j5" = numeric(0),
+                   "Preneur" = character(0),
+                   "Contrat" = character(0),
+                   "Score" = numeric(0),
+                   "Bouts" = numeric(0)
+                   )
+  
+  scores <- reactiveValues(data = df)
+  
+  # Modify scores colnames
+  observe({
     nplayers <- length(players())
-    colnames(df)[1:nplayers] <- players()
-    df
+    colnames(scores$data)[1:nplayers] <- players()
   })
   
   # Compute scores for current round
@@ -141,16 +148,22 @@ server <- function(input, output, session) {
                          nbouts = input$nbouts,
                          contract = input$contrat, 
                          teams = teams)
-
-    other_info <- c(input$prend,
-                    input$contrat,
-                    input$scorepren,
-                    input$nbouts)
-
-    points_df <- as.list(c(points, other_info))
-    points_df <- as.data.frame(points_df)
+    points <- c(points, rep(NA, 5 - length(points)))
+    points_list <- as.list(points)
     
-    colnames(points_df) <- c(players(), "Preneur", "Contrat", "Score", "Bouts")
+    other_info <- list(input$prend,
+                       input$contrat,
+                       input$scorepren,
+                       input$nbouts)
+
+    points_df <- as.data.frame(c(points_list, other_info))
+    
+    # Initialize names
+    colnames(points_df) <- c("j1", "j2", "j3", "j4", "j5", 
+                             "Preneur", "Contrat", "Score", "Bouts")
+    # Add actual player names
+    colnames(points_df)[1:nplayers] <- players()
+    
     points_df
   })
   
@@ -167,7 +180,7 @@ server <- function(input, output, session) {
     nplayers <- length(players())
     
     # Display only relevant scores
-    output_df <- scores()[c(1:nplayers, 6:ncol(scores()))]
+    output_df <- scores$data[c(1:nplayers, 6:ncol(scores$data))]
     output_df
   })
   
@@ -207,6 +220,32 @@ server <- function(input, output, session) {
     updateNumericInput(session = session,
                        "scorechall", value = 91 - input$scorepren)
   }) %>% bindEvent(input$scorepren, ignoreInit = TRUE)
+  
+  
+  # Validate
+  observeEvent(input$addround, {
+    # Check that data is not NA
+    if(!is.na(input$scorepren) & !is.na(input$scorechall) &
+       all(!is.na(scores_round()[1, players()]))) {
+      
+      # Add scores to total scores dataframe
+      df_final <- scores$data %>% bind_rows(scores_round())
+      scores$data <- df_final
+      
+      # Reinitialize inputs
+      updateSelectInput(session = session, "prend",
+                        selected = NULL)
+      updateSelectInput(session = session, "contrat",
+                        selected = "petite")
+      updateNumericInput(session = session, "nbouts",
+                         value = 0)
+      updateNumericInput(session = session, "scorepren", 
+                         value = NA)
+      updateNumericInput(session = session, "scorechall", 
+                         value = NA)
+    }
+    
+  })
   
   }
 
