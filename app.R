@@ -29,18 +29,18 @@ ui <- dashboardPage(
                              width = "150px")
                 ),
               column(width = 2,
-                     textInput("J1", "Joueur-euse 1")),
+                     textInput("J1", "Joueur-euse 1", value = "J1")),
               column(width = 2,
-                     textInput("J2", "Joueur-euse 2")),
+                     textInput("J2", "Joueur-euse 2", value = "J2")),
               column(width = 2,
-                     textInput("J3", "Joueur-euse 3")),
+                     textInput("J3", "Joueur-euse 3", value = "J3")),
               column(width = 2,
                 conditionalPanel(condition = "input.njoueurs >= 4",
-                                 textInput("J4", "Joueur-euse 4"))
+                                 textInput("J4", "Joueur-euse 4", value = "J4"))
                 ),
               column(width = 2,
                 conditionalPanel(condition = "input.njoueurs >= 5",
-                                 textInput("J5", "Joueur-euse 5"))
+                                 textInput("J5", "Joueur-euse 5", value = "J5"))
                 ),
               column(width = 12,
                      fileInput("inputtab", "Importer d'anciens scores", 
@@ -49,7 +49,10 @@ ui <- dashboardPage(
               ),
       tabItem(tabName = "recap",
               fluidRow(
-                box(h2("Qui prend etc")),
+                box(h2("Qui prend etc"),
+                    selectInput("prend", "Qui prend ?",
+                                choices = NULL)
+                    ),
                 box(h2("Tableau"))
                 )
               ),
@@ -59,6 +62,26 @@ ui <- dashboardPage(
   )
 )
 
-server <- function(input, output) { }
+server <- function(input, output, session) { 
+  
+  joueurs <- reactive({
+    # Initialize choices
+    joueurs <- c(input$J1, input$J2, input$J3)
+    # Add other players
+    if(input$njoueurs >= 4) {
+      joueurs <- c(joueurs, input$J4)
+    }
+    if(input$njoueurs >= 5) {
+      joueurs <- c(joueurs, input$J5)
+    }
+    joueurs
+  })
+  
+  observe({
+    updateSelectInput(session = session, 
+                      inputId = "prend", choices = joueurs())
+  })
+  
+  }
 
 shinyApp(ui, server)
