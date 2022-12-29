@@ -12,6 +12,11 @@
 get_points <- function(scorepren, nbouts,
                        contract, teams) {
   
+  if(is.na(scorepren)) {
+    res <- rep(NA, length(teams))
+    return(res)
+  }
+  
   # Initialize parameters ---
   # Winning threshold
   thr <- c(56, 51, 41, 36)

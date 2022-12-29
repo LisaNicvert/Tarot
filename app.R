@@ -12,6 +12,8 @@ library(shinydashboard)
 library(DT)
 library(magrittr)
 
+source("functions.R")
+
 # Define global threshold variable
 thr <- c(56, 51, 41, 36)
 names(thr) <- as.character(0:3)
@@ -30,7 +32,7 @@ ui <- dashboardPage(
       tabItem(tabName = "quijoue",
               column(width = 12,
                 h2("Qui joue ?"),
-                numericInput("njoueurs", "Nombre de joueurs", 
+                numericInput("nplayers", "Nombre de joueurs", 
                              value = 3, min = 3, max = 5, step = 1,
                              width = "150px")
                 ),
@@ -41,11 +43,11 @@ ui <- dashboardPage(
               column(width = 2,
                      textInput("J3", "Joueur-euse 3", value = "J3")),
               column(width = 2,
-                conditionalPanel(condition = "input.njoueurs >= 4",
+                conditionalPanel(condition = "input.nplayers >= 4",
                                  textInput("J4", "Joueur-euse 4", value = "J4"))
                 ),
               column(width = 2,
-                conditionalPanel(condition = "input.njoueurs >= 5",
+                conditionalPanel(condition = "input.nplayers >= 5",
                                  textInput("J5", "Joueur-euse 5", value = "J5"))
                 ),
               column(width = 12,
@@ -58,15 +60,22 @@ ui <- dashboardPage(
                 box(h2("Partie en cours"), width = 4,
                     selectInput("prend", "Qui prend ?",
                                 choices = NULL),
+                    conditionalPanel(condition = "input.nplayers == 5",
+                      selectInput("avec", "Avec qui ?",
+                                  choices = NULL)
+                      ),
                     selectInput("contrat", "Contrat",
                                 choices = list("petite", "pousse", "garde")),
                     numericInput("nbouts", "Bouts", 
                                  value = 0, min = 0, max = 3, step = 1),
                     textOutput("contract_text"),
                     numericInput("scorepren", "Score du preneur", 
-                                 value = 0, min = 0, max = 91, step = 0.5),
+                                 value = NULL, min = 0, max = 91, step = 0.5),
                     numericInput("scorechall", "Score des challengers", 
-                                 value = 0, min = 0, max = 91, step = 0.5)
+                                 value = NULL, min = 0, max = 91, step = 0.5),
+                    h3("Partie"),
+                    dataTableOutput("scores_round"),
+                    
                     ),
                 box(h2("Scores"), width = 8,
                     dataTableOutput("scores_disp"))
@@ -80,18 +89,18 @@ ui <- dashboardPage(
 
 server <- function(input, output, session) { 
   
-  # Keep updated joueurs list
-  joueurs <- reactive({
+  # Keep updated players list
+  players <- reactive({
     # Initialize choices
-    joueurs <- c(input$J1, input$J2, input$J3)
+    players <- c(input$J1, input$J2, input$J3)
     # Add other players
-    if(input$njoueurs >= 4) {
-      joueurs <- c(joueurs, input$J4)
+    if(input$nplayers >= 4) {
+      players <- c(players, input$J4)
     }
-    if(input$njoueurs >= 5) {
-      joueurs <- c(joueurs, input$J5)
+    if(input$nplayers >= 5) {
+      players <- c(players, input$J5)
     }
-    joueurs
+    players
   })
   
   # Initialize scores dataframe
@@ -106,17 +115,56 @@ server <- function(input, output, session) {
                      "Score" = numeric(0),
                      "Bouts" = numeric(0)
                      )
-    njoueurs <- length(joueurs())
-    colnames(df)[1:njoueurs] <- joueurs()
+    nplayers <- length(players())
+    colnames(df)[1:nplayers] <- players()
     df
+  })
+  
+  # Compute scores for current round
+  scores_round <- reactive({
+    # Get number of players
+    nplayers <- length(players())
+    # Initialize teams
+    teams <- rep("challenger", nplayers)
+    
+    # Modify preneur
+    teams[which(players() == input$prend)] <- "preneur"
+    
+    # Modify avec
+    if (nplayers == 5) { # Look for a 'with'
+      if(input$avec != "alone") {
+        teams[which(players() == input$avec)] <- "avec"
+      }
+    }
+    
+    points <- get_points(scorepren = input$scorepren, 
+                         nbouts = input$nbouts,
+                         contract = input$contrat, 
+                         teams = teams)
+
+    other_info <- c(input$prend,
+                    input$contrat,
+                    input$scorepren,
+                    input$nbouts)
+
+    points_df <- as.list(c(points, other_info))
+    points_df <- as.data.frame(points_df)
+    
+    colnames(points_df) <- c(players(), "Preneur", "Contrat", "Score", "Bouts")
+    points_df
+  })
+  
+  # Display current round scores
+  output$scores_round <- renderDataTable({
+    scores_round()[1:length(players())]
   })
   
   # Display scores dataframe
   output$scores_disp <- renderDataTable({
-    njoueurs <- length(joueurs())
+    nplayers <- length(players())
     
     # Display only relevant scores
-    output_df <- scores()[c(1:njoueurs, 6:ncol(scores()))]
+    output_df <- scores()[c(1:nplayers, 6:ncol(scores()))]
     output_df
   })
   
@@ -128,7 +176,22 @@ server <- function(input, output, session) {
   # Update preneur
   observe({
     updateSelectInput(session = session, 
-                      inputId = "prend", choices = joueurs())
+                      inputId = "prend", choices = players())
+  })
+  
+  # Update avec
+  observe({
+    # Get all players
+    all_players <- players()
+    # Remove preneur
+    no_preneur <- all_players[all_players != input$prend]
+    
+    # Add an 'alone' choice
+    with_choices <- as.list(c(no_preneur, "alone"))
+    names(with_choices) <- c(no_preneur, 
+                             paste(input$prend, "est tout seul-e !"))
+    updateSelectInput(session = session, 
+                      inputId = "avec", choices = with_choices)
   })
   
   # Update challenger score
