@@ -70,6 +70,7 @@ ui <- dashboardPage(
                     numericInput("nbouts", "Bouts", 
                                  value = 0, min = 0, max = 3, step = 1),
                     textOutput("contract_text"),
+                    br(),
                     column(6, 
                            style='padding-left:0px; padding-right:5px; padding-top:0px; padding-bottom:0px',
                            numericInput("scorepren", "Score du preneur", 
@@ -80,14 +81,14 @@ ui <- dashboardPage(
                            numericInput("scorechall", "Score des challengers", 
                                         value = NULL, min = 0, max = 91, step = 0.5)
                            ),
-                    h3("Scores finaux"),
+                    h3("Scores de la partie"),
                     dataTableOutput("scores_round"),
                     column(12, align="center",
                            br(),
                            actionButton("addround", "Valider")
                     )
                     ),
-                box(h2("Scores"), width = 8,
+                box(h2("Scores totaux"), width = 8,
                     dataTableOutput("scores_disp"),
                     downloadButton('download',"Télécharger les scores"))
                 )
