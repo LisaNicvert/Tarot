@@ -12,6 +12,7 @@ library(shinydashboard)
 library(DT)
 library(magrittr)
 library(dplyr)
+library(lubridate)
 
 source("functions.R")
 
@@ -124,7 +125,8 @@ server <- function(input, output, session) {
                    "Preneur" = character(0),
                    "Contrat" = character(0),
                    "Score" = numeric(0),
-                   "Bouts" = numeric(0)
+                   "Bouts" = numeric(0),
+                   "Date" = POSIXct(0)
                    )
   
   scores <- reactiveValues(data = df)
@@ -236,8 +238,15 @@ server <- function(input, output, session) {
     if(!is.na(input$scorepren) & !is.na(input$scorechall) &
        all(!is.na(scores_round()[1, players()]))) {
       
+      # Get date
+      date <- Sys.time()
+      
+      # Add date to table
+      to_add <- scores_round()
+      to_add$Date <- date
+      
       # Add scores to total scores dataframe
-      df_final <- scores$data %>% bind_rows(scores_round())
+      df_final <- scores$data %>% bind_rows(to_add)
       scores$data <- df_final
       
       # Reinitialize inputs
