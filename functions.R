@@ -54,3 +54,18 @@ get_points <- function(scorepren, nbouts,
   }
   return(round_score)
 }
+
+#' Get columns with only NAs
+#' 
+#' Get columns with only NAs in the first 5 columns of a df.
+#' Useful to discriminate actual players from placeholders used in the data
+#'
+#' @param df The dataframe
+#'
+#' @return A vector of length 5 named with column names containing
+#' TRUE if all values were NA, FALSE else.
+get_NA_players <- function(df) {
+  NA_cols <- apply(df[, 1:5], 2, 
+                   function(c) all(is.na(c)))
+  return(NA_cols)
+}

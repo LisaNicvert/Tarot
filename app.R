@@ -79,7 +79,8 @@ ui <- dashboardPage(
               column(width = 12,
                      fileInput("inputtab", "Importer d'anciens scores", 
                                multiple = FALSE, accept = "text/csv"),
-                     dataTableOutput("debug_oldscores")
+                     # dataTableOutput("debug_oldscores"),
+                     textOutput("message_input_data")
                      )
               ),
 ### Recap -------------------------------------------------------------------
@@ -136,19 +137,15 @@ server <- function(input, output, session) {
 ## Initialize scores dataframe ---------------------------------------------
   scores <- reactiveValues(data = df)
 
-
 ## Update data with imported scores table ----------------------------------
   # Update input players with old scores table input
-  observeEvent(input$inputtab, {
+  observe({
     # Check that oldscores exist
     req(oldscores())
     
-    # Get columns corresponding to players
-    playercols <- oldscores() %>%
-      select(-c("Preneur", "Contrat", "Score", "Bouts", "Date"))
-    
-    # Get playernames
-    playernames <- colnames(playercols)
+    # Get actual players
+    players_NA <- get_NA_players(oldscores())
+    playernames <- names(players_NA)[!players_NA]
     nplayers <- length(playernames)
     
     # --- Update nplayers
@@ -173,9 +170,59 @@ server <- function(input, output, session) {
     
     # --- Update scores
     scores$data <- oldscores()
+  }) %>% bindEvent(input$inputtab)
+  
+  # Get info from uploaded dataframe
+  oldscores <- reactive({
+    # Run only if an input has been made
+    req(input$inputtab)
     
+    # Read data
+    dat <- input$inputtab
+    
+    # Check extension
+    ext <- tools::file_ext(dat$datapath)
+    validate(need(ext == "csv", "Veuillez importer un fichier csv"))
+    
+    # Read
+    df <- read.csv(dat$datapath)
+    
+    # Check column count
+    validate(need(ncol(df) >=8 & ncol(df) <= 10, 
+                  "Veuillez importer un fichier valide"))
+    
+    # Check column names
+    validate(need(all(c("Preneur", "Contrat", "Score", "Bouts", "Date") %in% colnames(df)), 
+                  "Veuillez importer un fichier valide"))
+    
+    # Cast last column to POSIXct
+    df$Date <- as.POSIXct(df$Date)
+    
+    # Add NA columns with j4 and j5 if needed
+    playercols <- df %>%
+      select(-c("Preneur", "Contrat", "Score", "Bouts", "Date"))
+    if (ncol(playercols) == 3) {
+      df <- df %>% mutate("j4" = NA, 
+                          "j5" = NA,
+                          .after = 3)
+    }
+    if (ncol(playercols) == 4) {
+      df <- df %>% mutate("j5" = NA, .after = 4)
+    }
+    df
   })
   
+  # output$debug_oldscores <- renderDataTable({
+  #   oldscores()
+  # })
+  
+  output$message_input_data <- renderText({
+    oldscores()
+    "Les données ont été importées avec succès !"
+  }) %>% bindEvent(input$inputtab, 
+                   ignoreNULL = TRUE, ignoreInit = TRUE)
+  
+## Players list ------------------------------------------------------------
   # Keep updated players list
   players <- reactive({
     # Initialize choices
@@ -188,41 +235,6 @@ server <- function(input, output, session) {
       players <- c(players, input$J5)
     }
     players
-  })
-  
-## Players list ------------------------------------------------------------
-  # Get info from uploaded dataframe
-  oldscores <- reactive({
-    # Run only if an input has been made
-    req(input$inputtab)
-    
-    # Read data
-    dat <- input$inputtab
-    
-    # Check extension
-    ext <- tools::file_ext(dat$datapath)
-    validate(need(ext == "csv", "Please upload a csv file"))
-    
-    # Read
-    df <- read.csv(dat$datapath)
-    
-    # Check column count
-    validate(need(ncol(df) >=8 & ncol(df) <= 10, 
-                  "Please upload a valid csv file"))
-    
-    # Check column names
-    validate(need(all(c("Preneur", "Contrat", "Score", "Bouts", "Date") %in% colnames(df)), 
-                  "Please upload a valid csv file"))
-    
-    # Cast last column to POSIXct
-    df$Date <- as.POSIXct(df$Date)
-    
-    df
-    
-  })
-  
-  output$debug_oldscores <- renderDataTable({
-    oldscores()
   })
   
 ## Update scores with players ----------------------------------------------
@@ -311,7 +323,9 @@ server <- function(input, output, session) {
     
     points_df
   })
-  
+
+
+## Display scores tables ---------------------------------------------------
   # Display current round scores
   output$scores_round <- renderDataTable({
     df <- scores_round()[1:length(players())]
@@ -366,9 +380,7 @@ server <- function(input, output, session) {
 ## Download ----------------------------------------------------------------
   NA_cols <- reactive({
     # Get only "TRUE" players
-    NA_cols <- apply(scores$data[, 1:5], 2, 
-                     function(c) all(is.na(c)))
-    return(NA_cols)
+    get_NA_players(scores$data)
   })
   
   # Download button
