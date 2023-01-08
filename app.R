@@ -7,6 +7,8 @@
 #    http://shiny.rstudio.com/
 #
 
+
+# Libraries ---------------------------------------------------------------
 library(shiny)
 library(shinydashboard)
 library(DT)
@@ -16,12 +18,30 @@ library(lubridate)
 
 source("functions.R")
 
+
+# Global variables --------------------------------------------------------
 # Define global threshold variable
 thr <- c(56, 51, 41, 36)
 names(thr) <- as.character(0:3)
 
+# Initialize scores dataframe
+df <- data.frame("j1" = numeric(0),
+                 "j2" = numeric(0),
+                 "j3" = numeric(0),
+                 "j4" = numeric(0),
+                 "j5" = numeric(0),
+                 "Preneur" = character(0),
+                 "Contrat" = character(0),
+                 "Score" = numeric(0),
+                 "Bouts" = numeric(0),
+                 "Date" = POSIXct(0)
+                 )
+
+# ui ----------------------------------------------------------------------
 ui <- dashboardPage(
   dashboardHeader(title = "TarotCounter"),
+
+## Sidebar -----------------------------------------------------------------
   dashboardSidebar(
     sidebarMenu(
       menuItem("Qui joue ?", tabName = "quijoue"),
@@ -29,8 +49,12 @@ ui <- dashboardPage(
       menuItem("Stats", tabName = "stats")
     )
   ),
+
+## Body --------------------------------------------------------------------
   dashboardBody(
     tabItems(
+
+### Qui joue ? -------------------------------------------------------------
       tabItem(tabName = "quijoue",
               column(width = 12,
                 h2("Qui joue ?"),
@@ -54,9 +78,11 @@ ui <- dashboardPage(
                 ),
               column(width = 12,
                      fileInput("inputtab", "Importer d'anciens scores", 
-                               multiple = FALSE, accept = "text/csv")
+                               multiple = FALSE, accept = "text/csv"),
+                     dataTableOutput("debug_oldscores")
                      )
               ),
+### Recap -------------------------------------------------------------------
       tabItem(tabName = "recap",
               fluidRow(
                 box(h2("Partie en cours"), width = 4,
@@ -94,13 +120,61 @@ ui <- dashboardPage(
                     downloadButton('download',"Télécharger les scores"))
                 )
               ),
+
+### Stats -------------------------------------------------------------------
       tabItem(tabName = "stats",
               h2("Graphiques"))
     )
   )
 )
 
+
+
+# server ------------------------------------------------------------------
 server <- function(input, output, session) { 
+
+## Initialize scores dataframe ---------------------------------------------
+  scores <- reactiveValues(data = df)
+
+
+## Update data with imported scores table ----------------------------------
+  # Update input players with old scores table input
+  observeEvent(input$inputtab, {
+    # Check that oldscores exist
+    req(oldscores())
+    
+    # Get columns corresponding to players
+    playercols <- oldscores() %>%
+      select(-c("Preneur", "Contrat", "Score", "Bouts", "Date"))
+    
+    # Get playernames
+    playernames <- colnames(playercols)
+    nplayers <- length(playernames)
+    
+    # --- Update nplayers
+    updateNumericInput(session = session,
+                       "nplayers", value = nplayers)
+    
+    # --- Update player names inputs values
+    updateTextInput(session = session,
+                    "J1", value = playernames[1])
+    updateTextInput(session = session,
+                    "J2", value = playernames[2])
+    updateTextInput(session = session,
+                    "J3", value = playernames[3])
+    if(nplayers >= 4) {
+      updateTextInput(session = session,
+                      "J4", value = playernames[4])
+    }
+    if(nplayers >= 5) {
+      updateTextInput(session = session,
+                      "J5", value = playernames[5])
+    }
+    
+    # --- Update scores
+    scores$data <- oldscores()
+    
+  })
   
   # Keep updated players list
   players <- reactive({
@@ -116,27 +190,88 @@ server <- function(input, output, session) {
     players
   })
   
-  # Initialize scores dataframe
-  df <- data.frame("j1" = numeric(0),
-                   "j2" = numeric(0),
-                   "j3" = numeric(0),
-                   "j4" = numeric(0),
-                   "j5" = numeric(0),
-                   "Preneur" = character(0),
-                   "Contrat" = character(0),
-                   "Score" = numeric(0),
-                   "Bouts" = numeric(0),
-                   "Date" = POSIXct(0)
-                   )
+## Players list ------------------------------------------------------------
+  # Get info from uploaded dataframe
+  oldscores <- reactive({
+    # Run only if an input has been made
+    req(input$inputtab)
+    
+    # Read data
+    dat <- input$inputtab
+    
+    # Check extension
+    ext <- tools::file_ext(dat$datapath)
+    validate(need(ext == "csv", "Please upload a csv file"))
+    
+    # Read
+    df <- read.csv(dat$datapath)
+    
+    # Check column count
+    validate(need(ncol(df) >=8 & ncol(df) <= 10, 
+                  "Please upload a valid csv file"))
+    
+    # Check column names
+    validate(need(all(c("Preneur", "Contrat", "Score", "Bouts", "Date") %in% colnames(df)), 
+                  "Please upload a valid csv file"))
+    
+    # Cast last column to POSIXct
+    df$Date <- as.POSIXct(df$Date)
+    
+    df
+    
+  })
   
-  scores <- reactiveValues(data = df)
+  output$debug_oldscores <- renderDataTable({
+    oldscores()
+  })
   
+## Update scores with players ----------------------------------------------
   # Modify scores colnames
   observe({
     nplayers <- length(players())
     colnames(scores$data)[1:nplayers] <- players()
   })
   
+## Variables for the round -------------------------------------------------
+  # Update challenger card points count
+  observe({
+    updateNumericInput(session = session,
+                       "scorepren", value = 91 - input$scorechall)
+  }) %>% bindEvent(input$scorechall, ignoreInit = TRUE)
+  
+  # Update preneur card points count
+  observe({
+    updateNumericInput(session = session,
+                       "scorechall", value = 91 - input$scorepren)
+  }) %>% bindEvent(input$scorepren, ignoreInit = TRUE)
+  
+  # Display contract
+  output$contract_text <- renderText({
+    paste("Le preneur doit faire au moins", thr[as.character(input$nbouts)], "points.")
+  })
+  
+  # Update preneur
+  observe({
+    updateSelectInput(session = session, 
+                      inputId = "prend", choices = players())
+  })
+  
+  # Update avec
+  observe({
+    # Get all players
+    all_players <- players()
+    # Remove preneur
+    no_preneur <- all_players[all_players != input$prend]
+    
+    # Add an 'alone' choice
+    with_choices <- as.list(c(no_preneur, "alone"))
+    names(with_choices) <- c(no_preneur, 
+                             paste(input$prend, "est tout seul-e !"))
+    updateSelectInput(session = session, 
+                      inputId = "avec", choices = with_choices)
+  })
+
+## Compute scores ----------------------------------------------------------
   # Compute scores for current round
   scores_round <- reactive({
     # Get number of players
@@ -193,45 +328,8 @@ server <- function(input, output, session) {
     output_df <- scores$data[c(1:nplayers, 6:ncol(scores$data))]
     output_df
   })
-  
-  # Display contract
-  output$contract_text <- renderText({
-    paste("Le preneur doit faire au moins", thr[as.character(input$nbouts)], "points.")
-  })
-  
-  # Update preneur
-  observe({
-    updateSelectInput(session = session, 
-                      inputId = "prend", choices = players())
-  })
-  
-  # Update avec
-  observe({
-    # Get all players
-    all_players <- players()
-    # Remove preneur
-    no_preneur <- all_players[all_players != input$prend]
-    
-    # Add an 'alone' choice
-    with_choices <- as.list(c(no_preneur, "alone"))
-    names(with_choices) <- c(no_preneur, 
-                             paste(input$prend, "est tout seul-e !"))
-    updateSelectInput(session = session, 
-                      inputId = "avec", choices = with_choices)
-  })
-  
-  # Update challenger score
-  observe({
-    updateNumericInput(session = session,
-                       "scorepren", value = 91 - input$scorechall)
-  }) %>% bindEvent(input$scorechall, ignoreInit = TRUE)
-  # Update preneur score
-  observe({
-    updateNumericInput(session = session,
-                       "scorechall", value = 91 - input$scorepren)
-  }) %>% bindEvent(input$scorepren, ignoreInit = TRUE)
-  
-  
+
+## Validate round ----------------------------------------------------------
   # Validate
   observeEvent(input$addround, {
     # Check that data is not NA
@@ -264,14 +362,46 @@ server <- function(input, output, session) {
     
   })
   
+
+## Download ----------------------------------------------------------------
+  NA_cols <- reactive({
+    # Get only "TRUE" players
+    NA_cols <- apply(scores$data[, 1:5], 2, 
+                     function(c) all(is.na(c)))
+    return(NA_cols)
+  })
+  
   # Download button
   output$download <- downloadHandler(
-    filename = function(){"tarot.csv"}, 
+    filename = function(){
+      # Get player names
+      NA_players <- NA_cols()
+      non_NA <- names(NA_players)[!NA_players]
+      
+      # Get file name
+      fname <- paste0("tarot_",
+                      paste(non_NA, collapse = "_"),
+                      ".csv")
+      fname}, 
     content = function(fname){
-      write.csv(scores$data, fname)
+      # Get only non-NA players
+      NA_players <- NA_cols()
+      index_NA_players <- which(NA_players)
+      if(length(index_NA_players) != 0) { # If some scores are NAs
+        to_write <- scores$data[, -index_NA_players]
+      } else { # No scores are NA: we want the whole table
+        to_write <- scores$data
+      }
+      
+      
+      # Write
+      write.csv(to_write, fname,
+                row.names = FALSE)
     }
   )
   
   }
 
+
+# app ---------------------------------------------------------------------
 shinyApp(ui, server)
