@@ -120,18 +120,29 @@ ui <- dashboardPage(
                     h3("En plus..."),
                     checkboxInput("petitbout", 
                                   "Petit au bout ?"),
-                    conditional_en_plus("petitbout"),
-                    checkboxInput("chelem", 
-                                  "Chelem ?"),
-                    conditional_en_plus("chelem"),
+                    column(12,
+                           conditional_en_plus("petitbout")
+                           ),
                     checkboxInput("poignee", 
                                   "Poignée ?"),
-                    conditional_en_plus("poignee"),
-                    conditionalPanel(condition = "input.poignee",
-                                     selectInput("size_poignee",
-                                                 label = "Taille",
-                                                 choices = NULL)
-                                     ),
+                    column(12,
+                           conditional_en_plus("poignee"),
+                           conditionalPanel(condition = "input.poignee",
+                                            selectInput("size_poignee",
+                                                        label = "Taille",
+                                                        choices = NULL))
+                    ),
+                    checkboxInput("chelem", 
+                                  "Chelem ?"),
+                    column(12, 
+                           conditional_en_plus("chelem"),
+                           conditionalPanel(condition = "input.chelem",
+                                            checkboxInput("chelem_annonce",
+                                                          label = "Annoncé ?"),
+                                            checkboxInput("chelem_reussi",
+                                                          label = "Réussi ?",
+                                                          value = TRUE))
+                           ),
                     br(),
 #### Sous-total -------------------------------------------------------------
                     h3("Scores de la partie"),
@@ -267,9 +278,9 @@ server <- function(input, output, session) {
     triple <- poignees_nj$triple
     
     # Create choices list
-    choices <- list(simple,
-                    double,
-                    triple)
+    choices <- list("simple",
+                    "double",
+                    "triple")
     names(choices) <- c(paste0("Simple (", simple, ")"),
                         paste0("Double (", double, ")"),
                         paste0("Triple (", triple, ")"))
@@ -344,10 +355,29 @@ server <- function(input, output, session) {
       }
     }
     
+    # Get petit_bout
+    petitbout <- code_bonus(input$petitbout,
+                            input$qui_petitbout)
+
+    # Get chelem
+    chelem <- code_bonus(input$chelem,
+                         input$qui_chelem)
+    
+    # Get poignee
+    poignee <- code_bonus(input$poignee,
+                          input$qui_poignee)
+    
+    # Compute total
     points <- get_points(scorepren = input$scorepren, 
                          nbouts = input$nbouts,
                          contract = input$contrat, 
-                         teams = teams)
+                         teams = teams,
+                         petitbout = petitbout,
+                         chelem = chelem,
+                         chelem_annonce = input$chelem_annonce,
+                         chelem_reussi = input$chelem_reussi,
+                         poignee = poignee,
+                         size_poignee = input$size_poignee)
     points <- c(points, rep(NA, 5 - length(points)))
     points_list <- as.list(points)
     
