@@ -24,6 +24,12 @@ source("functions.R")
 thr <- c(56, 51, 41, 36)
 names(thr) <- as.character(0:3)
 
+# Define sizes for poignées
+poignees <- data.frame(njoueurs = c(3, 4, 5),
+                       simple = c(13, 10, 8),
+                       double = c(15, 13, 10),
+                       triple = c(18, 15, 13))
+
 # Initialize scores dataframe
 df <- data.frame("j1" = numeric(0),
                  "j2" = numeric(0),
@@ -86,6 +92,7 @@ ui <- dashboardPage(
 ### Recap -------------------------------------------------------------------
       tabItem(tabName = "recap",
               fluidRow(
+#### Qui prend -------------------------------------------------------------
                 box(h2("Partie en cours"), width = 4,
                     selectInput("prend", "Qui prend ?",
                                 choices = NULL),
@@ -105,10 +112,28 @@ ui <- dashboardPage(
                                         value = NULL, min = 0, max = 91, step = 0.5)
                            ),
                     column(6, 
-                           style='padding-left:0px; padding-right:5px; padding-top:0px; padding-bottom:0px',
+                           style='padding-left:5px; padding-right:0px; padding-top:0px; padding-bottom:0px',
                            numericInput("scorechall", "Score des challengers", 
                                         value = NULL, min = 0, max = 91, step = 0.5)
                            ),
+#### En plus -------------------------------------------------------------
+                    h3("En plus..."),
+                    checkboxInput("petitbout", 
+                                  "Petit au bout ?"),
+                    conditional_en_plus("petitbout"),
+                    checkboxInput("chelem", 
+                                  "Chelem ?"),
+                    conditional_en_plus("chelem"),
+                    checkboxInput("poignee", 
+                                  "Poignée ?"),
+                    conditional_en_plus("poignee"),
+                    conditionalPanel(condition = "input.poignee",
+                                     selectInput("size_poignee",
+                                                 label = "Taille",
+                                                 choices = NULL)
+                                     ),
+                    br(),
+#### Sous-total -------------------------------------------------------------
                     h3("Scores de la partie"),
                     dataTableOutput("scores_round"),
                     column(12, align="center",
@@ -116,6 +141,7 @@ ui <- dashboardPage(
                            actionButton("addround", "Valider")
                     )
                     ),
+#### Total -------------------------------------------------------------
                 box(h2("Scores totaux"), width = 8,
                     dataTableOutput("scores_disp"),
                     downloadButton('download',"Télécharger les scores"))
@@ -212,10 +238,6 @@ server <- function(input, output, session) {
     df
   })
   
-  # output$debug_oldscores <- renderDataTable({
-  #   oldscores()
-  # })
-  
   output$message_input_data <- renderText({
     oldscores()
     "Les données ont été importées avec succès !"
@@ -236,6 +258,27 @@ server <- function(input, output, session) {
     }
     players
   })
+  
+  # Update poignee size following njoueurs
+  observe({
+    poignees_nj <- poignees[poignees$njoueurs == length(players()), ]
+    simple <- poignees_nj$simple
+    double <- poignees_nj$double
+    triple <- poignees_nj$triple
+    
+    # Create choices list
+    choices <- list(simple,
+                    double,
+                    triple)
+    names(choices) <- c(paste0("Simple (", simple, ")"),
+                        paste0("Double (", double, ")"),
+                        paste0("Triple (", triple, ")"))
+    
+    updateSelectInput(session = session,
+                      "size_poignee",
+                      choices = choices)
+    
+  }) %>% bindEvent(input$nplayers)
   
 ## Update scores with players ----------------------------------------------
   # Modify scores colnames

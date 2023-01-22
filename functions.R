@@ -69,3 +69,24 @@ get_NA_players <- function(df) {
                    function(c) all(is.na(c)))
   return(NA_cols)
 }
+
+#' Conditional panel
+#'
+#' This function creates a selectInput widget with 2 choices
+#' based on the condition of id.
+#' This is used for the additional points (petit au bout, chelem, 
+#' poignées).
+#' 
+#' @param id The id of the widget the condition is based on
+#'
+#' @return a conditionalPanel containing a selectInput list with 2 choices,
+#' with the id "qui-id"
+conditional_en_plus <- function(id) {
+  
+  conditionalPanel(condition = paste("input", id, sep = "."),
+                   selectInput(paste("input", id, sep = "_"),
+                               label = "Pour", 
+                               choices = list("Le preneur-euse" = "preneur",
+                                              "Les challengeur-euses" = "challengers"))
+  )
+} 
