@@ -361,7 +361,6 @@ server <- function(input, output, session) {
     poignee <- ifelse(input$poignee,
                       input$size_poignee,
                       "0")
-    cat(poignee)
 
     # Compute total
     points <- get_points(scorepren = input$scorepren, 
