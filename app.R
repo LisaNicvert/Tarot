@@ -67,7 +67,7 @@ ui <- dashboardPage(
                 numericInput("nplayers", "Nombre de joueurs", 
                              value = 3, min = 3, max = 5, step = 1,
                              width = "150px")
-                ),
+              ),
               column(width = 2,
                      textInput("J1", "Joueur-euse 1", value = "J1")),
               column(width = 2,
@@ -77,72 +77,66 @@ ui <- dashboardPage(
               column(width = 2,
                 conditionalPanel(condition = "input.nplayers >= 4",
                                  textInput("J4", "Joueur-euse 4", value = "J4"))
-                ),
+              ),
               column(width = 2,
                 conditionalPanel(condition = "input.nplayers >= 5",
                                  textInput("J5", "Joueur-euse 5", value = "J5"))
-                ),
+              ),
               column(width = 12,
                      fileInput("inputtab", "Importer d'anciens scores", 
                                multiple = FALSE, accept = "text/csv"),
-                     # dataTableOutput("debug_oldscores"),
                      textOutput("message_input_data")
-                     )
-              ),
+              )
+      ), # tabItem
 ### Recap -------------------------------------------------------------------
       tabItem(tabName = "recap",
               fluidRow(
-#### Qui prend -------------------------------------------------------------
                 box(h2("Partie en cours"), width = 4,
+#### Prise ------------------------------------------------------------------
+                    h3("Prise"),
                     selectInput("prend", "Qui prend ?",
                                 choices = NULL),
                     conditionalPanel(condition = "input.nplayers == 5",
-                      selectInput("avec", "Avec qui ?",
-                                  choices = NULL)
-                      ),
+                                     selectInput("avec", "Avec qui ?",
+                                                 choices = NULL)
+                    ),
                     selectInput("contrat", "Contrat",
                                 choices = list("petite", "pousse", "garde")),
-                    numericInput("nbouts", "Bouts", 
-                                 value = 0, min = 0, max = 3, step = 1),
-                    textOutput("contract_text"),
-                    br(),
-                    column(6, 
-                           style='padding-left:0px; padding-right:5px; padding-top:0px; padding-bottom:0px',
-                           numericInput("scorepren", "Score du preneur", 
-                                        value = NULL, min = 0, max = 91, step = 0.5)
-                           ),
-                    column(6, 
-                           style='padding-left:5px; padding-right:0px; padding-top:0px; padding-bottom:0px',
-                           numericInput("scorechall", "Score des challengers", 
-                                        value = NULL, min = 0, max = 91, step = 0.5)
-                           ),
-#### En plus -------------------------------------------------------------
-                    h3("En plus..."),
-                    checkboxInput("petitbout", 
-                                  "Petit au bout ?"),
+                    checkboxInput("poignee",
+                                  "Poignée déclarée ?"),
                     column(12,
-                           conditional_en_plus("petitbout")
-                           ),
-                    checkboxInput("poignee", 
-                                  "Poignée ?"),
-                    column(12,
-                           conditional_en_plus("poignee"),
                            conditionalPanel(condition = "input.poignee",
                                             selectInput("size_poignee",
                                                         label = "Taille",
                                                         choices = NULL))
                     ),
-                    checkboxInput("chelem", 
-                                  "Chelem ?"),
-                    column(12, 
-                           conditional_en_plus("chelem"),
-                           conditionalPanel(condition = "input.chelem",
-                                            checkboxInput("chelem_annonce",
-                                                          label = "Annoncé ?"),
-                                            checkboxInput("chelem_reussi",
-                                                          label = "Réussi ?",
-                                                          value = TRUE))
-                           ),
+                    checkboxInput("chelem_annonce",
+                                  "Chelem annoncé ?"),
+#### Verdict -------------------------------------------------------------
+                    h3("Verdict"),
+                    numericInput("nbouts", "Nombre de bouts", 
+                                 value = 0, min = 0, max = 3, step = 1),
+                    textOutput("contract_text"),
+                    checkboxInput("chelem_reussi",
+                                  label = "Chelem réussi ?"),
+                    column(12,
+                           conditional_en_plus("chelem_reussi")
+                    ),
+                    checkboxInput("petitbout",
+                                  "Petit au bout ?"),
+                    column(12,
+                           conditional_en_plus("petitbout")
+                    ),
+                    column(6,
+                           style='padding-left:0px; padding-right:5px; padding-top:0px; padding-bottom:0px',
+                           numericInput("scorepren", "Score du preneur",
+                                        value = NULL, min = 0, max = 91, step = 0.5)
+                    ),
+                    column(6,
+                           style='padding-left:5px; padding-right:0px; padding-top:0px; padding-bottom:0px',
+                           numericInput("scorechall", "Score des challengers",
+                                        value = NULL, min = 0, max = 91, step = 0.5)
+                    ),
                     br(),
 #### Sous-total -------------------------------------------------------------
                     h3("Scores de la partie"),
@@ -151,26 +145,26 @@ ui <- dashboardPage(
                            br(),
                            actionButton("addround", "Valider")
                     )
-                    ),
+                ), # box
 #### Total -------------------------------------------------------------
                 box(h2("Scores totaux"), width = 8,
                     dataTableOutput("scores_disp"),
                     downloadButton('download',"Télécharger les scores"))
-                )
-              ),
+              ) # fluidrow
+      ), # tabItem
 
 ### Stats -------------------------------------------------------------------
       tabItem(tabName = "stats",
-              h2("Graphiques"))
-    )
-  )
-)
+              h2("Graphiques")
+      )
+    ) # tabItems
+  ) # dashboardBody
+) # dashboardPage
 
 
 
 # server ------------------------------------------------------------------
 server <- function(input, output, session) { 
-
 ## Initialize scores dataframe ---------------------------------------------
   scores <- reactiveValues(data = df)
 
@@ -358,26 +352,27 @@ server <- function(input, output, session) {
     # Get petit_bout
     petitbout <- code_bonus(input$petitbout,
                             input$qui_petitbout)
-
+    
     # Get chelem
-    chelem <- code_bonus(input$chelem,
-                         input$qui_chelem)
+    chelem_reussi <- code_bonus(input$chelem_reussi,
+                                input$qui_chelem_reussi)
     
     # Get poignee
-    poignee <- code_bonus(input$poignee,
-                          input$qui_poignee)
-    
+    poignee <- ifelse(input$poignee,
+                      input$size_poignee,
+                      "0")
+    cat(poignee)
+
     # Compute total
     points <- get_points(scorepren = input$scorepren, 
                          nbouts = input$nbouts,
                          contract = input$contrat, 
                          teams = teams,
                          petitbout = petitbout,
-                         chelem = chelem,
                          chelem_annonce = input$chelem_annonce,
-                         chelem_reussi = input$chelem_reussi,
-                         poignee = poignee,
-                         size_poignee = input$size_poignee)
+                         chelem_reussi = chelem_reussi,
+                         poignee = poignee)
+
     points <- c(points, rep(NA, 5 - length(points)))
     points_list <- as.list(points)
     

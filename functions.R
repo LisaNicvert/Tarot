@@ -8,21 +8,17 @@
 #' @param teams A vector giving the order of the teams. Can have values
 #' 'preneur', 'challenger', 'avec'
 #' @param petitbout A coded value for 'petit au bout' : P, C or 0.
-#' @param chelem A coded value for 'chelem' : P, C or 0.
 #' @param chelem_annonce TRUE or FALSE
-#' @param chelem_reussi TRUE or FALSE
-#' @param poignee A coded value for 'poignee' : P, C or 0.
-#' @param size_poignee "simple", "double" or "triple
+#' @param chelem_reussi A coded value for 'chelem' : P, C or 0.
+#' @param poignee "0", "simple", "double" or "triple" ("0" means no 'poignée' declared)
 #'
 #' @return A vector of scores in the same order as the input teams vector.
 get_points <- function(scorepren, nbouts,
                        contract, teams,
                        petitbout,
-                       chelem,
                        chelem_annonce,
                        chelem_reussi,
-                       poignee,
-                       size_poignee) {
+                       poignee) {
   
   if(is.na(scorepren)) {
     res <- rep(NA, length(teams))
@@ -77,31 +73,29 @@ get_points <- function(scorepren, nbouts,
     poignee_score <- 0
   } else { # Score depends on the size of the 'poignée'
     # Multiplied by the number of challengers
-    poignee_score <- poignee_bonus[size_poignee]
+    poignee_score <- poignee_bonus[poignee]
   }
   
   # Get chelem score
-  if (chelem == "0") {
-    chelem_score <- 0
-  } else {
-    if (chelem == 'P') { # preneur made a chelem
-      # Chelem annoncé -> 400
-      if (chelem_annonce & chelem_reussi) {
-        chelem_score <- chelem_bonus["annonce"]
-      } else if (chelem_annonce & !chelem_reussi) {
-        # Chelem annoncé mais non réussi -> -200
-        chelem_score <- -chelem_bonus["non_annonce"]
-      } else if (!chelem_annonce & chelem_reussi) {
-        # Chelem non annoncé -> 200
-        chelem_score <- chelem_bonus["non_annonce"]
-      } else if (!chelem_annonce & !chelem_reussi) {
-        # Chelem non-annoncé et non réussi -> pas de chelem (avoid bugs)
-        chelem_score <- 0
-      }
-    } else if (chelem == "C") {
-      # If challengers made a chelem they gain 200 points
+  if (chelem_reussi == "P") {
+    if (chelem_annonce) {
+      # Chelem annoncé et réussi -> 400
+      chelem_score <- chelem_bonus["annonce"]
+    } else {
+      # Chelem non annoncé -> 200
       chelem_score <- chelem_bonus["non_annonce"]
     }
+  } else if (chelem_reussi == "0") {
+    if (chelem_annonce) {
+      # Chelem annoncé mais non réussi -> -200
+      chelem_score <- -chelem_bonus["non_annonce"]
+    } else {
+      # Chelem non annoncé et non réussi -> 0
+      chelem_score <- 0
+    }
+  } else if (chelem_reussi == "C") {
+    # If challengers made a chelem they gain 200 points
+    chelem_score <- chelem_bonus["non_annonce"]
   }
   
   # Initialize scores vector ---
