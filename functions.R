@@ -78,6 +78,10 @@ get_points <- function(scorepren, nbouts,
   
   # Get chelem score
   if (chelem_reussi == "P") {
+    if (scorepren < 87) { # 91 - 4 if the other have the excuse
+      stop(paste("Le preneur ne peut pas avoir réussi son chelem avec", 
+                 scorepren, "points"))
+    }
     if (chelem_annonce) {
       # Chelem annoncé et réussi -> 400
       chelem_score <- chelem_bonus["annonce"]
@@ -94,6 +98,10 @@ get_points <- function(scorepren, nbouts,
       chelem_score <- 0
     }
   } else if (chelem_reussi == "C") {
+    if (scorepren >= 4) { # 4 if he has the excuse
+      stop(paste("Les challengers ne peuvent pas avoir réussi un chelem avec", 
+                 91 - scorepren, "points"))
+    }
     # If challengers made a chelem they gain 200 points
     chelem_score <- chelem_bonus["non_annonce"]
   }

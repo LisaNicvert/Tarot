@@ -51,7 +51,7 @@ ui <- dashboardPage(
   dashboardSidebar(
     sidebarMenu(
       menuItem("Qui joue ?", tabName = "quijoue"),
-      menuItem("Récap", tabName = "recap"),
+      menuItem("Partie", tabName = "partie"),
       menuItem("Stats", tabName = "stats")
     )
   ),
@@ -88,10 +88,10 @@ ui <- dashboardPage(
                      textOutput("message_input_data")
               )
       ), # tabItem
-### Recap -------------------------------------------------------------------
-      tabItem(tabName = "recap",
+### Partie -------------------------------------------------------------------
+      tabItem(tabName = "partie",
               fluidRow(
-                box(h2("Partie en cours"), width = 4,
+                box(h2("Partie en cours"), width = 5,
 #### Prise ------------------------------------------------------------------
                     h3("Prise"),
                     selectInput("prend", "Qui prend ?",
@@ -147,7 +147,7 @@ ui <- dashboardPage(
                     )
                 ), # box
 #### Total -------------------------------------------------------------
-                box(h2("Scores totaux"), width = 8,
+                box(h2("Scores totaux"), width = 7,
                     dataTableOutput("scores_disp"),
                     downloadButton('download',"Télécharger les scores"))
               ) # fluidrow
@@ -398,16 +398,21 @@ server <- function(input, output, session) {
     df <- scores_round()[1:length(players())]
     DT::datatable(df, 
                   rownames = FALSE,
-                  options = list(dom = 't', ordering = FALSE))
+                  options = list(dom = 't', ordering = FALSE),
+                  selection = 'none')
   })
   
   # Display scores dataframe
   output$scores_disp <- renderDataTable({
     nplayers <- length(players())
     
-    # Display only relevant scores
-    output_df <- scores$data[c(1:nplayers, 6:ncol(scores$data))]
-    output_df
+    # Display only relevant scores + preneur
+    output_df <- scores$data[c(1:nplayers, 6)]
+    DT::datatable(output_df, selection = 'single')
+  })
+  
+  observeEvent(input$scores_disp_rows_selected, {
+    str(input$scores_disp_rows_selected)
   })
 
 ## Validate round ----------------------------------------------------------
