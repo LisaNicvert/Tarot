@@ -149,6 +149,10 @@ ui <- dashboardPage(
 #### Total -------------------------------------------------------------
                 box(h2("Scores totaux"), width = 7,
                     dataTableOutput("scores_disp"),
+                    conditionalPanel(condition = "input.scores_disp_rows_selected > 0",
+                                     style='padding-bottom:15px;',
+                                     actionButton("modify", "Modifier ces scores")
+                    ),
                     downloadButton('download',"Télécharger les scores"))
               ) # fluidrow
       ), # tabItem
@@ -408,13 +412,23 @@ server <- function(input, output, session) {
     
     # Display only relevant scores + preneur
     output_df <- scores$data[c(1:nplayers, 6)]
-    DT::datatable(output_df, selection = 'single')
+    DT::datatable(output_df, 
+                  selection = list(mode = 'single', selected = NULL))
   })
   
-  observeEvent(input$scores_disp_rows_selected, {
-    str(input$scores_disp_rows_selected)
+## Modify ----------------------------------------------------------
+  observeEvent(input$modify, {
+    row <- scores$data[input$scores_disp_rows_selected, ]
+    
+    # Update preneur
+    updateSelectInput(session = session, 
+                      inputId = "prend", selected = row$Preneur)
+    # Update contrat
+    updateSelectInput(session = session, 
+                      inputId = "contrat", selected = row$Contrat)
+    
   })
-
+  
 ## Validate round ----------------------------------------------------------
   # Validate
   observeEvent(input$addround, {
