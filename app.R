@@ -148,10 +148,16 @@ ui <- dashboardPage(
                 ), # box
 #### Total -------------------------------------------------------------
                 box(h2("Scores totaux"), width = 7,
+                    h3("Parties"),
                     dataTableOutput("scores_disp"),
                     conditionalPanel(condition = "input.scores_disp_rows_selected > 0",
                                      style='padding-bottom:15px;',
                                      actionButton("modify", "Modifier ces scores")
+                    ),
+                    conditionalPanel(condition = "input.scores_disp_rows_all.length > 0",
+                                     style='padding-bottom:15px;',
+                                     h3("Total"),
+                                     dataTableOutput("scores_tot"),
                     ),
                     downloadButton('download',"Télécharger les scores"))
               ) # fluidrow
@@ -414,6 +420,21 @@ server <- function(input, output, session) {
     output_df <- scores$data[c(1:nplayers, 6)]
     DT::datatable(output_df, 
                   selection = list(mode = 'single', selected = NULL))
+  })
+  
+  # Display total
+  output$scores_tot <- renderDataTable({
+    # get only scores
+    df <- scores$data[, 1:length(players())]
+    
+    # Get sum
+    res <- as.data.frame(t(sort(colSums(df),
+                                decreasing = TRUE)))
+
+    DT::datatable(res, 
+                  rownames = FALSE,
+                  options = list(dom = 't', ordering = FALSE),
+                  selection = 'none')
   })
   
 ## Modify ----------------------------------------------------------
