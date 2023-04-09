@@ -96,10 +96,6 @@ ui <- dashboardPage(
                     h3("Prise"),
                     selectInput("prend", "Qui prend ?",
                                 choices = NULL),
-                    conditionalPanel(condition = "input.nplayers == 5",
-                                     selectInput("avec", "Avec qui ?",
-                                                 choices = NULL)
-                    ),
                     selectInput("contrat", "Contrat",
                                 choices = list("petite", "pousse", "garde")),
                     checkboxInput("poignee",
@@ -114,6 +110,10 @@ ui <- dashboardPage(
                                   "Chelem annoncé ?"),
 #### Verdict -------------------------------------------------------------
                     h3("Verdict"),
+                    conditionalPanel(condition = "input.nplayers == 5",
+                                     selectInput("avec", "Qui a été appelé-e ?",
+                                                 choices = NULL)
+                    ),
                     numericInput("nbouts", "Nombre de bouts", 
                                  value = 0, min = 0, max = 3, step = 1),
                     textOutput("contract_text"),
